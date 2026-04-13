@@ -1,0 +1,224 @@
+server:
+  port: 6868
+  compression:
+    enabled: true
+    error:
+      include-message: always
+      include-stacktrace: on_param
+
+spring:
+  application:
+    name: pdf-signing-service
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # DATABASE CONFIGURATION - SQL Server
+  # ═══════════════════════════════════════════════════════════════════════
+  datasource:
+    url: jdbc:sqlserver://192.168.0.92:1433;databaseName=signing_db;encrypt=true;trustServerCertificate=true
+    username: lifetex
+    password: LTLT@2025
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: OTPServiceHikariPool
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # JPA/HIBERNATE CONFIGURATION - ĐÃ SỬA: Đưa ra ngoài datasource
+  # ═══════════════════════════════════════════════════════════════════════
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Thay bằng 'create-drop' ở dev/test và 'validate' ở production
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.SQLServerDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # MAIL CONFIGURATION - ĐÃ SỬA: Xóa duplicate
+  # ═══════════════════════════════════════════════════════════════════════
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: namdh@lifetex.vn
+    password: hqwp eedd hgie fjhx
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  # ═══════════════════════════════════════════════════════════════════════
+  # REDIS CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════
+  redis:
+    host: localhost
+    port: 6379
+    # password: your_redis_password  # Uncomment nếu Redis có password
+    timeout: 2000ms
+
+  # ═══════════════════════════════════════════════════════════════════════
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # OAUTH2 RESOURCE SERVER - Xác thực với SSO
+  # ═══════════════════════════════════════════════════════════════════════
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Endpoint SSO server cung cấp public keys
+          jwk-set-uri: ${WSO2_JWK_SET_URI:http://192.168.0.220:9765/oauth2/jwks}
+          # Issuer URI (optional, để validate 'iss' claim trong JWT)
+          issuer-uri: http://192.168.0.220:9765
+
+# ═══════════════════════════════════════════════════════════════════════
+# TRUSTED SERVICES CONFIGURATION - Multi-strategy Authentication
+# ═══════════════════════════════════════════════════════════════════════
+
+security:
+  trusted-services:
+    # ─────────────────────────────────────────────────────────────────────
+    # SERVER_SERVER: Hệ thống tự tạo JWT token với secret riêng
+    # ─────────────────────────────────────────────────────────────────────
+    SERVER_TAN_CANG:
+      name: "Hệ thống Tân Cảng"
+      type: "SERVICE_TOKEN"
+      issuer: "https://lifeoffice-tcsg.lifetex.vn"
+      secret: ${SERVER_A_SECRET:6O6VBW2YSdmvmFnUOjsUmjMdgwx64hHrKeVF/XVqhQ0=}
+
+    # ─────────────────────────────────────────────────────────────────────
+    # SERVER_C: Gửi SSO token, Server B callback để lấy permissions
+    # ─────────────────────────────────────────────────────────────────────
+    SERVER_C:
+      name: "Hệ thống nhân sự"
+      type: "SSO_TOKEN"
+      # URL để validate SSO token
+      sso-validate-url: "http://192.168.0.220:9765/oauth2/introspect"
+      # URL callback về Server C để lấy user permissions
+      permission-url: "http://192.168.0.210:8083/api/get-user-permissions"
+      # API key để Server B xác thực với Server C
+      api-key: ${SERVER_C_API_KEY:change-this-api-key-in-production}
+
+# ============================================
+# OTP CONFIGURATION
+# ============================================
+otp:
+  # OTP Settings
+  length: 6
+  expiry-minutes: 5
+
+  # Rate Limiting
+  max-requests: 3
+  rate-limit-window-minutes: 15
+
+  # Security
+  max-failed-attempts: 3
+  lockout-duration-minutes: 30
+
+  # Audit Log Settings
+  audit-log:
+    # Số ngày giữ logs (mặc định: 90 ngày)
+    retention-days: 90
+
+    # Cron expression cho cleanup job
+    # Format: giây phút giờ ngày tháng thứ
+    # Mặc định: 0 0 2 * * ? = Mỗi ngày lúc 2:00 AM
+    cleanup-cron: "0 0 2 * * ?"
+
+    # Bật/tắt scheduled cleanup
+    cleanup-enabled: true
+
+    # Bật/tắt hourly statistics
+    stats-enabled: true
+
+    # Bật/tắt suspicious activity monitoring
+    monitoring-enabled: true
+
+# ============================================
+# LOGGING CONFIGURATION
+# ============================================
+logging:
+  level:
+    root: INFO
+    com.lifetex.sign.service.OTPAuditLogService: DEBUG
+    org.apache.pdfbox.pdmodel.interactive.digitalsignature.visible.PDFTemplateCreator: WARN
+    org.apache.pdfbox.pdmodel.interactive.digitalsignature.visible.PDVisibleSigBuilder: WARN
+    eu.europa.esig.dss.pdf.pdfbox.visible.defaultdrawer: WARN
+  #    org.hibernate.SQL: DEBUG
+#    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+#    org.springframework.security: TRACE
+#    org.springframework.security.oauth2: TRACE
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+  file:
+    name: logs/otp-service.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# ============================================
+# ACTUATOR (Health Check)
+# ============================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,scheduledtasks
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      simple:
+        enabled: true
+
+# ejbca Configuration
+ejbca:
+    base-url: https://192.168.0.14:18443/ejbca/ejbca-rest-api/v1
+    ca-name: caXhsm
+    certificate-profile: UserClientAuth_v3
+    end-entity-profile: UserClientProfile
+
+    # Client certificate config
+    client-cert:
+      keystore-path: classpath:certs/api-admin.p12
+      keystore-password: admin
+      keystore-type: PKCS12
+    # SSL config
+    ssl:
+      trust-all: true  # Development only!
+
+# DSS Configuration
+dss:
+  signature:
+    default-level: PAdES-BASELINE-B
+    digest-algorithm: SHA256
+
+# Get file service
+# Get file service
+get-file:
+  service:
+    base-url: https://administrator.lifetex.vn:253

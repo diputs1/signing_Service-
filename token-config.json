@@ -1,0 +1,8 @@
+[
+  {
+    "id": "95893e6d-ef56-46ff-981f-5a73f81982b6",
+    "name": "USB_HILO_CA",
+    "libraryPath": "C:\\Windows\\System32\\hiloca_csp11_v1.dll",
+    "slotIndex": 0
+  }
+]
