@@ -6,5 +6,5 @@
 ╚══════╝╚═╝╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝
 
 🔥 Signature Service Started Successfully 🔥
-Author: Nam Dang
+Author: Tung Dos
 Version: 1.0.0
